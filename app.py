@@ -335,6 +335,144 @@ def display_sample(idx: int):
 
 # ----------------- 主程序入口 -----------------
 
+# def main():
+#     init_session_state()
+
+#     st.title("✨ 记忆分类人工审核器（Streamlit）")
+
+#     st.markdown(
+#         """
+# 本工具用于人工审核虚拟人记忆数据集中 `must / nice / irr` 的分类是否合理。
+
+# **使用方式（每位数据标注师）：**
+# 1. 在左侧上传自己那一份 JSON 数据集（顶层必须是 list，每个元素是一个样本 dict）。
+# 2. 在中间界面逐条查看样本，编辑：
+#    - `given_type` / `inferred_type`
+#    - 每条记忆的 `fact` / `why`
+#    - 每条记忆的“当前标签”（must / nice / irr / remove）
+#    - “原标签”是导入时的标签，仅作参考，不会被修改。
+# 3. 完成后点击下方“下载标注后的 JSON 文件”，将结果保存本地并交回。
+
+# > 说明：
+# > - 同一台服务器上，多位标注师可以同时使用这个页面；每个人的浏览器会话互相独立。
+# > - 只要不关闭标签页 / 不强制刷新（Ctrl+R / F5），进度会一直保存在当前浏览器会话的内存里。
+# > - 服务器重启或你关闭浏览器后，需要重新上传 JSON；建议工作一段时间就下载一次备份。
+# """
+#     )
+
+#     st.sidebar.header("📂 数据加载")
+
+#     # 已经有数据的情况：显示文件名 & 清空按钮
+#     if st.session_state.data is not None and st.session_state.uploaded_name:
+#         st.sidebar.success(
+#             f"✅ 已加载文件：{st.session_state.uploaded_name}\n"
+#             f"共 {len(st.session_state.data)} 条样本"
+#         )
+#         if st.sidebar.button("🔄 清空并重新上传", use_container_width=True):
+#             st.session_state.data = None
+#             st.session_state.uploaded_name = None
+#             st.session_state.sample_idx = 0
+#             st.rerun()
+#     else:
+#         # 只有在没有数据时才显示文件上传器
+#         uploaded_file = st.sidebar.file_uploader(
+#             "上传 JSON 文件（UTF-8 编码）", type=["json"], key="file_uploader"
+#         )
+
+#         if uploaded_file is not None:
+#             try:
+#                 data = load_json_file(uploaded_file)
+#                 st.session_state.data = data
+#                 st.session_state.sample_idx = 0
+#                 st.session_state.uploaded_name = uploaded_file.name
+#                 st.sidebar.success(
+#                     f"已加载文件：{uploaded_file.name}，共 {len(data)} 条样本。"
+#                 )
+#                 st.rerun()
+#             except Exception as e:
+#                 st.sidebar.error(f"解析 JSON 失败：{e}")
+
+#     # 若还没有数据，直接提示并返回
+#     if st.session_state.data is None:
+#         st.warning("请先在左侧上传一个 JSON 数据集文件。")
+#         return
+
+#     data = st.session_state.data
+#     n_samples = len(data)
+
+#     st.markdown("---")
+#     st.subheader("📑 样本浏览与编辑")
+
+#     col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+
+#     # 上一条
+#     with col_nav1:
+#         if st.button("⬅️ 上一条", use_container_width=True):
+#             save_current_sample(st.session_state.sample_idx)
+#             old_idx = st.session_state.sample_idx
+#             if st.session_state.sample_idx > 0:
+#                 st.session_state.sample_idx -= 1
+#                 clear_sample_widgets(old_idx)
+#             st.rerun()
+
+#     # 下一条
+#     with col_nav3:
+#         if st.button("下一条 ➡️", use_container_width=True):
+#             save_current_sample(st.session_state.sample_idx)
+#             old_idx = st.session_state.sample_idx
+#             if st.session_state.sample_idx < n_samples - 1:
+#                 st.session_state.sample_idx += 1
+#                 clear_sample_widgets(old_idx)
+#             st.rerun()
+
+#     # 跳转
+#     with col_nav2:
+#         cur = st.session_state.sample_idx + 1
+#         new_idx_display = st.number_input(
+#             "跳转到第几条（1-based）",
+#             min_value=1,
+#             max_value=n_samples,
+#             value=cur,
+#             step=1,
+#         )
+#         if new_idx_display != cur:
+#             save_current_sample(st.session_state.sample_idx)
+#             old_idx = st.session_state.sample_idx
+#             st.session_state.sample_idx = new_idx_display - 1
+#             clear_sample_widgets(old_idx)
+#             st.rerun()
+
+#     st.markdown("---")
+
+#     # 显示当前样本
+#     display_sample(st.session_state.sample_idx)
+
+#     # 手动保存按钮（其实在切换样本 & 导出时也会自动保存）
+#     if st.button("✅ 保存当前样本修改"):
+#         save_current_sample(st.session_state.sample_idx)
+#         st.success("当前样本已保存到当前会话的内存中。")
+
+#     st.markdown("---")
+#     st.subheader("📥 导出标注结果")
+
+#     # 导出前再保存一次当前样本
+#     save_current_sample(st.session_state.sample_idx)
+
+#     json_str = json.dumps(st.session_state.data, ensure_ascii=False, indent=2)
+#     download_filename = (
+#         (st.session_state.uploaded_name or "labeled_data.json").replace(".json", "")
+#         + "_labeled.json"
+#     )
+
+#     st.download_button(
+#         "⬇️ 下载标注后的 JSON 文件",
+#         data=json_str.encode("utf-8"),
+#         file_name=download_filename,
+#         mime="application/json",
+#     )
+
+#     st.caption("提示：下载的是当前会话内存中的全部样本，包括你已经修改保存的内容。")
+
 def main():
     init_session_state()
 
@@ -442,6 +580,32 @@ def main():
             clear_sample_widgets(old_idx)
             st.rerun()
 
+    # ===== 新增：删除当前样本按钮 =====
+    st.markdown("")
+    if st.button("🗑️ 删除当前样本（整条样本）", use_container_width=False):
+        idx = st.session_state.sample_idx
+        data = st.session_state.data
+
+        if data is not None and 0 <= idx < len(data):
+            # 清理当前样本的 widget 状态
+            clear_sample_widgets(idx)
+            # 删除该样本
+            del data[idx]
+
+            if len(data) == 0:
+                # 没有样本了，清空数据
+                st.session_state.data = None
+                st.session_state.sample_idx = 0
+            else:
+                # 还有样本，更新 data 和 当前 index
+                st.session_state.data = data
+                if idx >= len(data):
+                    # 如果删的是最后一条，就跳到新的最后一条
+                    st.session_state.sample_idx = len(data) - 1
+
+        st.rerun()
+    # ===== 删除按钮结束 =====
+
     st.markdown("---")
 
     # 显示当前样本
@@ -472,6 +636,7 @@ def main():
     )
 
     st.caption("提示：下载的是当前会话内存中的全部样本，包括你已经修改保存的内容。")
+
 
 
 if __name__ == "__main__":
